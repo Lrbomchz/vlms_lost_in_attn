@@ -83,11 +83,11 @@ def extract_thinking_tags(text, start_tag="<think>", end_tag="</think>"):
 import re
 
 
-def generate_response(model, processor, image, question, final_answer_tokens=1024, idx="test"):
+def generate_response(model, processor, image, question, final_answer_tokens=1024, add_prompt="", idx="test"):
     messages = [
         {"role": "user", "content": [
             {"type": "image", "image": image},
-            {"type": "text", "text": f"{question} Answer ONLY option's letter from the given choices."}
+            {"type": "text", "text": f"{question} {add_prompt}"}
         ]}
     ]
 
@@ -150,7 +150,7 @@ def generate_response(model, processor, image, question, final_answer_tokens=102
     with torch.no_grad():
         gen_output = model.generate(
             **inputs,
-            max_new_tokens=16,
+            max_new_tokens=final_answer_tokens,
             do_sample=False,
             output_attentions=False,
             return_dict_in_generate=True,
@@ -194,15 +194,30 @@ def url_to_local_path(url: str, root="coco_images"):
     rel = url.split("images.cocodataset.org/")[-1]
     return str(Path(root) / rel)
 
-def process_dataset(model, processor, pope_path, output_json, num_samples=100):
+def _think_instruction_suffix():
+    return (
+        " You FIRST think about the reasoning process as an internal monologue and then provide the final answer. "
+        "The reasoning process MUST BE enclosed within <think> </think> tags. "
+        "The final answer must be an option letter (i.e. A, B, C or D) from the given choices, "
+        "enclosed in <answer></answer> tags. Let's think more."
+    )
+
+def process_dataset(model, processor, pope_path, output_json, num_samples=100, answer_type=""):
     ds = load_dataset(pope_path)  # DatasetDict
     data = ds["test"] # test split: ~ 9000 samples
 
     results = []
 
+    num_samples = min(len(data), num_samples)
+    data = data.select(range(num_samples))
+
+    add_prompt = "Answer ONLY option's letter from the given choices."
+    if answer_type == "reasoning":
+        add_prompt = _think_instruction_suffix()
+
     idx = 0
 
-    for row in tqdm(data, total=len(data)):
+    for row in tqdm(data, total=num_samples):
         image_id = str(row['index'])
         image = row['image']
 
@@ -210,7 +225,7 @@ def process_dataset(model, processor, pope_path, output_json, num_samples=100):
         # print(question)
         answer = row['answer']
 
-        response = generate_response(model, processor, image, question, idx=image_id)
+        response = generate_response(model, processor, image, question, idx=image_id, add_prompt=add_prompt)
 
         result = {
             "index": image_id,
@@ -242,13 +257,14 @@ if __name__ == "__main__":
     parser.add_argument('--model_name', type=str, default="qwen-2.5-vl-7b")
     parser.add_argument('--num_samples', type=int, default=10000)
     parser.add_argument('--device', type=str, default="cuda:0")
-    parser.add_argument('--mode', type=str, default="border")
+    parser.add_argument('--mode', type=str, default="gaussian_noise")
     parser.add_argument('--replace_layer', type=str, default="21,22,23,24,25,26,27")
     parser.add_argument('--align_lambda', type=float, default=0.0)
     parser.add_argument('--head_percentile_min', type=float, default=0.3)
     parser.add_argument('--head_percentile_max', type=float, default=0.9)
+    parser.add_argument('--answer_type', type=str, default="")
     args = parser.parse_args()
 
-    output = f"{args.out_dir}/SAP_results/output_openvl_output_{args.model_name}_hmin{args.head_percentile_min}_hmax{args.head_percentile_max}_rlayer{args.replace_layer}_vmc_SAP.json"
+    output = f"{args.out_dir}/SAP_results/output_openvl_output_{args.model_name}_hmin{args.head_percentile_min}_hmax{args.head_percentile_max}_rlayer{args.replace_layer}_{args.answer_type}_vmcbench_SAP.json"
     model, processor = load_model_and_processor(args.model_path, args.device)
-    process_dataset(model, processor, args.data_path, output, args.num_samples)
+    process_dataset(model, processor, args.data_path, output, args.num_samples, args.answer_type)

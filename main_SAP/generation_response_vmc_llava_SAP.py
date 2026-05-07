@@ -196,12 +196,12 @@ def generate_response(model, processor, image, question, final_answer_tokens=102
         replace_layer=args.replace_layer
     )
 
-    need_vision_attn = (args.mode == "aligned")
+    need_vision_attn = (args.mode == "vis_enc_attn")
 
     with torch.no_grad():
         gen_output = model.generate(
             **inputs,
-            max_new_tokens=16,
+            max_new_tokens=final_answer_tokens,
             do_sample=True,
             output_attentions=True,  # decoder 的
             return_dict_in_generate=True,
@@ -221,6 +221,9 @@ def process_dataset(model, processor, pope_path, output_json, num_samples=100):
     data = ds["test"]  # data=data["test"] 也可以
 
     results = []
+
+    num_samples = min(len(data), num_samples)
+    data = data.select(range(num_samples))
 
     idx = 0
 
@@ -289,7 +292,7 @@ if __name__ == "__main__":
     parser.add_argument('--model_name', type=str, default="llava-1.5-7b")
     parser.add_argument('--num_samples', type=int, default=20)
     parser.add_argument('--device', type=str, default="cuda:0")
-    parser.add_argument('--mode', type=str, default="border")
+    parser.add_argument('--mode', type=str, default="gaussian_noise")
     parser.add_argument('--replace_layer', type=str, default="21,22,23,24,25,26,27")
     parser.add_argument('--align_lambda', type=float, default=0.0)
     parser.add_argument('--head_percentile_min', type=float, default=0.3)
@@ -298,6 +301,6 @@ if __name__ == "__main__":
 
     #args.config = load_yaml(args.data_config_path)
 
-    output = f"{args.outdir}/SAP_results/ablation_llava/output_openvl_output_{args.model_name}_hmin{args.head_percentile_min}_hmax{args.head_percentile_max}_rlayer{args.replace_layer}_vmc_apipe.json"
+    output = f"{args.out_dir}/SAP_results/output_openvl_output_{args.model_name}_hmin{args.head_percentile_min}_hmax{args.head_percentile_max}_rlayer{args.replace_layer}_vmcbench_SAP.json"
     model, processor = load_model_and_processor(args.model_path, args.device)
     process_dataset(model, processor, args.data_path, output, args.num_samples)

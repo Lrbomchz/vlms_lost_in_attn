@@ -1235,11 +1235,12 @@ class Qwen2_5_VLModel(Qwen2_5_VLPreTrainedModel):
     def set_visual_guidance_config(
             self,
             visual_token_range: tuple[int, int],
-            apipe_mode: str = "aligned",
+            apipe_mode: str = "vis_enc_attn",
             align_lambda: float = 0.5,
             head_percentile_min: float = 0.0,
             head_percentile_max: float = 1.0,
             vis_weight = None,
+            replace_layer="all",
     ):
         """
         visual_token_range: (start, end)，end 不含；基于 decoder input_ids 的位置索引
@@ -1252,6 +1253,7 @@ class Qwen2_5_VLModel(Qwen2_5_VLPreTrainedModel):
         self.visual_head_percentile_max = head_percentile_max
         self.apipe_mode = apipe_mode
         self.vis_weight = vis_weight
+        self.replace_layer = replace_layer
 
     def get_input_embeddings(self):
         return self.language_model.get_input_embeddings()
@@ -1583,7 +1585,7 @@ class Qwen2_5_VLModel(Qwen2_5_VLPreTrainedModel):
 
         is_prefill = (cache_position is None) or (cache_position[0].item() == 0)
 
-        need_guidance = is_prefill and (self.apipe_mode == "aligned") and (self.visual_token_range is not None)
+        need_guidance = is_prefill and (self.apipe_mode == "vis_enc_attn") and (self.visual_token_range is not None)
 
         # ====== 每个 forward 先清空 decoder 里旧的 visual guidance ======
         if is_prefill:
@@ -1591,7 +1593,7 @@ class Qwen2_5_VLModel(Qwen2_5_VLPreTrainedModel):
                 if hasattr(layer.self_attn, "visual_guidance"):
                     layer.self_attn.visual_guidance = None
                     layer.self_attn.visual_token_range = None
-                    #layer.self_attn.apipe_mode = getattr(self, "apipe_mode", "aligned")
+                    #layer.self_attn.apipe_mode = getattr(self, "apipe_mode", "vis_enc_attn")
                     layer.self_attn.visual_lambda = getattr(self, "visual_align_lambda", 0.5)
                     layer.self_attn.visual_head_percentile = getattr(self, "visual_head_percentile", 1.0)
 
@@ -1659,14 +1661,14 @@ class Qwen2_5_VLModel(Qwen2_5_VLPreTrainedModel):
         #if output_vision_attentions and getattr(self.visual, "vision_attentions", None) is not None:
         if is_prefill:
             # 取视觉 encoder 最后一层的 attention: (batch=1, num_heads, L, L)
-            if self.apipe_mode == "aligned":
+            if self.apipe_mode == "vis_enc_attn":
                 vis_attn = getattr(self.visual, "vis_attn_vector", None)
 
             elif self.apipe_mode in ["complexity", "key"]:
                 if self.vis_weight is None:
                     raise ValueError(f"Apipe mode {self.apipe_mode} needs to precompute visual token weights. Please compute your weight before model.generate and set vis_weight=YOUR_WEIGHTS")
                 vis_attn = self.vis_weight
-            elif self.apipe_mode == "border": vis_attn = self.vis_weight
+            elif self.apipe_mode == "gaussian_noise": vis_attn = self.vis_weight
             else:
                 raise ValueError(f"Unsupported Apipe mode: {self.apipe_mode}")
 
@@ -1683,7 +1685,10 @@ class Qwen2_5_VLModel(Qwen2_5_VLPreTrainedModel):
         if aligned_prob is not None and self.visual_token_range is not None:
             for idx, layer in enumerate(self.language_model.layers):
                 # 第 0 层不注入任何 visual guidance
-                if idx == 0:
+                if self.replace_layer == "all":
+                    if idx == 0:
+                        continue
+                elif str(idx) not in self.replace_layer.split(","):
                     continue
 
                 self_attn = layer.self_attn

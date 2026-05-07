@@ -12,7 +12,7 @@ from transformers.modeling_utils import PreTrainedModel
 from transformers.processing_utils import Unpack
 from transformers.utils import TransformersKwargs, auto_docstring, can_return_tuple, logging
 from transformers.models.auto import AutoModel
-from my_modeling_llama import LlamaModel as MyLlamaModel
+from SAP_models.my_modeling_llama import LlamaModel as MyLlamaModel
 
 from transformers.models.llava.configuration_llava import LlavaConfig
 from utils.SAP_utils import Apipe_prob
@@ -132,7 +132,7 @@ class LlavaModel(LlavaPreTrainedModel):
         self.visual_align_lambda: float = 0.5
         self.visual_head_percentile_min: float = 0.0
         self.visual_head_percentile_max: float = 1.0
-        self.apipe_mode: str = "aligned"
+        self.apipe_mode: str = "vis_enc_attn"
         self.vis_weight = None
         self.vision_attentions = None  # 用来存 vision tower 的 attentions
 
@@ -156,7 +156,7 @@ class LlavaModel(LlavaPreTrainedModel):
     def set_visual_guidance_config(
             self,
             visual_token_range: tuple[int, int],
-            apipe_mode: str = "aligned",
+            apipe_mode: str = "vis_enc_attn",
             align_lambda: float = 0.5,
             head_percentile_min: float = 0.0,
             head_percentile_max: float = 1.0,
@@ -333,7 +333,7 @@ class LlavaModel(LlavaPreTrainedModel):
             inputs_embeds = self.get_input_embeddings()(input_ids)
 
         if pixel_values is not None:
-            need_vision_attn = (self.apipe_mode == "aligned")
+            need_vision_attn = (self.apipe_mode == "vis_enc_attn")
             image_features = self.get_image_features(
                 pixel_values=pixel_values,
                 vision_feature_layer=vision_feature_layer,
@@ -359,9 +359,9 @@ class LlavaModel(LlavaPreTrainedModel):
             vtr = self.visual_token_range
 
             if pixel_values is not None:
-                if self.apipe_mode == "aligned":
+                if self.apipe_mode == "vis_enc_attn":
                     if self.vision_attentions is None:
-                        raise ValueError("aligned mode requires vision attentions, but got None.")
+                        raise ValueError("vis_enc_attn mode requires vision attentions, but got None.")
                     last_attn = self.vision_attentions[0]  # (B,H,S,S)
                     patch_attn = last_attn[:, :, 1:, 1:]  # (B,H,P,P)
                     per_head_attn = patch_attn[0]  # (H,P,P)
@@ -371,7 +371,7 @@ class LlavaModel(LlavaPreTrainedModel):
                     if self.vis_weight is None:
                         raise ValueError(f"Apipe mode {self.apipe_mode} needs vis_weight.")
                     vis_attn = self.vis_weight.to(inputs_embeds.device)
-                elif self.apipe_mode == "border":
+                elif self.apipe_mode == "gaussian_noise":
                     vis_attn = self.vis_weight.to(inputs_embeds.device)
                 else:
                     raise ValueError(f"Unsupported Apipe mode: {self.apipe_mode}")

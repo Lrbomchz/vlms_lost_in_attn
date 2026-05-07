@@ -17,7 +17,7 @@ from transformers.processing_utils import Unpack
 from transformers.utils import TransformersKwargs, auto_docstring, can_return_tuple
 from transformers.models.auto import AutoModel
 from transformers.models.llava_onevision.configuration_llava_onevision import LlavaOnevisionConfig
-from my_modeling_qwen2 import Qwen2Model as MyQwen2Model
+from SAP_models.my_modeling_qwen2 import Qwen2Model as MyQwen2Model
 
 from utils.SAP_utils import Apipe_prob
 
@@ -264,7 +264,7 @@ class LlavaOnevisionModel(LlavaOnevisionPreTrainedModel):
         self.visual_align_lambda: float = 0.5
         self.visual_head_percentile_min: float = 0.0
         self.visual_head_percentile_max: float = 1.0
-        self.apipe_mode: str = "aligned"
+        self.apipe_mode: str = "vis_enc_attn"
         self.vis_weight = None
 
         # 只存 vision tower 最后一层 attentions（可选）
@@ -291,7 +291,7 @@ class LlavaOnevisionModel(LlavaOnevisionPreTrainedModel):
     def set_visual_guidance_config(
             self,
             visual_token_range: tuple[int, int],
-            apipe_mode: str = "aligned",
+            apipe_mode: str = "vis_enc_attn",
             align_lambda: float = 0.5,
             head_percentile_min: float = 0.0,
             head_percentile_max: float = 1.0,
@@ -584,7 +584,7 @@ class LlavaOnevisionModel(LlavaOnevisionPreTrainedModel):
 
         # Images are processed with Anyres
         if pixel_values is not None:
-            need_vision_attn = (self.apipe_mode == "aligned") and (not is_decode)
+            need_vision_attn = (self.apipe_mode == "vis_enc_attn") and (not is_decode)
             image_features = self.get_image_features(
                 pixel_values,
                 image_sizes,
@@ -631,15 +631,15 @@ class LlavaOnevisionModel(LlavaOnevisionPreTrainedModel):
 
             # 只在有图且你真的设置了 range 时才算 guidance
             if (pixel_values is not None) and (vtr is not None):
-                if self.apipe_mode == "aligned":
+                if self.apipe_mode == "vis_enc_attn":
                     if self.vision_attentions is None:
-                        raise ValueError("aligned mode requires vision attentions, but got None. "
+                        raise ValueError("vis_enc_attn mode requires vision attentions, but got None. "
                                          "Set output_vision_attentions=True in prefill.")
                     last_attn = self.vision_attentions[0]  # (B,H,S,S)
                     patch_attn = last_attn[:, :, 1:, 1:]  # (B,H,P,P)
                     per_head_attn = patch_attn[0]  # (H,P,P)
                     vis_attn = per_head_attn.mean(dim=1).mean(dim=0)  # (P,)
-                elif self.apipe_mode in ["complexity", "key", "border"]:
+                elif self.apipe_mode in ["complexity", "key", "gaussian_noise"]:
                     if self.vis_weight is None:
                         raise ValueError(f"Apipe mode {self.apipe_mode} needs vis_weight.")
                     vis_attn = self.vis_weight.to(inputs_embeds.device)

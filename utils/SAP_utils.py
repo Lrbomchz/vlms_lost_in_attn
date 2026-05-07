@@ -11,7 +11,7 @@ def Apipe_prob(mode: str, ref_weight: torch.Tensor) -> torch.Tensor:
     根据不同模式返回一份对视觉 patch 的概率分布。
 
     参数：
-      mode: "border"（随机）、"aligned"、"complexity"、"key"
+      mode: "gaussian_noise"（随机）、"vis_enc_attn"、"complexity"、"key"
       ref_weight: 1D tensor，长度 = len(visual_patches)
 
     返回：
@@ -23,7 +23,7 @@ def Apipe_prob(mode: str, ref_weight: torch.Tensor) -> torch.Tensor:
     n = ref_weight.shape[0]
 
     mode = mode.lower()
-    if mode == "border":
+    if mode == "gaussian_noise":
         # 方式1：用 Dirichlet 直接采样一个随机分布
         # concentration 全 1，相当于在 simplex 上均匀采样
         concentration = torch.ones(n, device=ref_weight.device, dtype=ref_weight.dtype)
@@ -36,7 +36,7 @@ def Apipe_prob(mode: str, ref_weight: torch.Tensor) -> torch.Tensor:
         # prob = F.softmax(noise, dim=0)
         # return prob
 
-    elif mode in ["aligned", "complexity", "key"]:
+    elif mode in ["vis_enc_attn", "complexity", "key"]:
         # 把 ref_weight 变成概率分布（softmax）
         # 减去 max 做数值稳定
         x = ref_weight - ref_weight.max()
@@ -45,7 +45,7 @@ def Apipe_prob(mode: str, ref_weight: torch.Tensor) -> torch.Tensor:
 
     else:
         raise ValueError(f"Unknown mode: {mode}, must be one of "
-                         f"'border', 'aligned', 'complexity', 'key'.")
+                         f"'gaussian_noise', 'vis_enc_attn', 'complexity', 'key'.")
 
 
 def _to_gray(patch: torch.Tensor) -> torch.Tensor:
@@ -846,3 +846,17 @@ def split_image_into_patches(image_inputs: Image.Image, patchtify_thw, device="c
             patch_list.append(patch.float() / 255.0)
 
     return patch_list
+
+def move_inputs_for_onevision(inputs, device):
+    """
+    OneVision 里：input_ids/attention_mask/pixel_values 要上 GPU；
+    但 image_sizes / image_sizes_videos / batch_num_images 留在 CPU（后面经常 .tolist())。
+    """
+    keep_cpu_keys = {"image_sizes", "image_sizes_videos", "batch_num_images"}
+    out = {}
+    for k, v in inputs.items():
+        if torch.is_tensor(v) and (k not in keep_cpu_keys):
+            out[k] = v.to(device)
+        else:
+            out[k] = v
+    return out
