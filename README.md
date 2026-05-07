@@ -74,16 +74,16 @@ Run (example):
 
 ```shell
 # for qwen-2.5-VL
-python main_SAP/generation_response_vmc_qwen_SAP.py --data_path /data/hdd1/xigongli/VMCBench/ --model_path /data/hdd1/xigongli/Qwen2.5-VL-7B-Instruct/ --out_dir /data/hdd1/xigongli/lost_in_attn_results --num_samples 10 --device "cuda:0" --mode "gaussian_noise" --replace_layer "21,22,23,24,25,26,27" --align_lambda 1
+python main_SAP/generation_response_vmc_qwen_SAP.py --data_path /PATH/TO/VMCBench/ --model_path /PATH/TO/Qwen2.5-VL-7B-Instruct/ --out_dir OUTDIR --num_samples 10 --device "cuda:0" --mode "gaussian_noise" --replace_layer "all" --align_lambda 1
 
 # for qwen-2.5-VL based reasoning model (e.g. ocean-r1)
-python main_SAP/generation_response_vmc_qwen_SAP.py --data_path /data/hdd1/xigongli/VMCBench/ --model_path /data/hdd1/xigongli/weights/Ocean_R1_7B_Instruct/ --model_name "ocean-r1-7b" --out_dir /data/hdd1/xigongli/lost_in_attn_results --num_samples 10 --device "cuda:0" --mode "gaussian_noise" --replace_layer "21,22,23,24,25,26,27" --align_lambda 1 --answer_type "reasoning"
+python main_SAP/generation_response_vmc_qwen_SAP.py --data_path /PATH/TO/VMCBench/ --model_path /PATH/TO/Ocean_R1_7B_Instruct/ --model_name "ocean-r1-7b" --out_dir OUTDIR --num_samples 10 --device "cuda:0" --mode "gaussian_noise" --replace_layer "all" --align_lambda 1 --answer_type "reasoning"
 
 # for llava-1.5
-python main_SAP/generation_response_vmc_llava_SAP.py --data_path /data/hdd1/xigongli/VMCBench/ --model_path /data/hdd1/xigongli/weights/llava-1.5-7b-hf/ --out_dir /data/hdd1/xigongli/lost_in_attn_results --num_samples 10 --device "cuda:0" --mode "gaussian_noise" --replace_layer "18,19,20,21,22,23" --align_lambda 1
+python main_SAP/generation_response_vmc_llava_SAP.py --data_path /PATH/TO/VMCBench/ --model_path /PATH/TO/llava-1.5-7b-hf/ --out_dir OUTDIR --num_samples 10 --device "cuda:0" --mode "gaussian_noise" --replace_layer "18,19,20,21,22,23" --align_lambda 1
 
 # for llava-onevision
-python main_SAP/generation_response_vmc_onevision_SAP.py --data_path /data/hdd1/xigongli/VMCBench/ --model_path /data/hdd1/xigongli/weights/llava-onevision-qwen2-7b-ov-hf/ --out_dir /data/hdd1/xigongli/lost_in_attn_results --num_samples 10 --device "cuda:0" --mode "gaussian_noise" --replace_layer "21,22,23,24,25,26,27" --align_lambda 1
+python main_SAP/generation_response_vmc_onevision_SAP.py --data_path /PATH/TO/VMCBench/ --model_path /PATH/TO/llava-onevision-qwen2-7b-ov-hf/ --out_dir OUTDIR --num_samples 10 --device "cuda:0" --mode "gaussian_noise" --replace_layer "21,22,23,24,25,26,27" --align_lambda 1
 ```
 
 ## Citation
