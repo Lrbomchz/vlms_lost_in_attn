@@ -90,11 +90,10 @@ python main_SAP/generation_response_vmc_onevision_SAP.py --data_path /PATH/TO/VM
 
 If you find our work helpful, please cite us:
 ```bibtex
-@inproceedings{
-xi2026large,
-title={Large Vision-Language Models Get Lost in Attention},
-author={Xi, Gongli and others},
-booktitle={Forty-third International Conference on Machine Learning},
-year={2026},
+@article{xi2026large,
+  title={Large Vision-Language Models Get Lost in Attention},
+  author={Xi, Gongli and Tian, Ye and Yang, Mengyu and Yi, Huahui and Lin, Liang and Hao, Xiaoshuai and Wang, Kun and Wang, Wendong},
+  journal={arXiv preprint arXiv:2605.05668},
+  year={2026}
 }
 ```
