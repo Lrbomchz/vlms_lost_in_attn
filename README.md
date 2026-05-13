@@ -56,7 +56,7 @@ We recommend using the following versions for reproducibility:
 From the project root:
 
 ```bash
-cd lost_in_attention
+cd vlms_lost_in_attn
 pip install -e .
 ```
 
